@@ -4,51 +4,36 @@
 - Step 0.1, the number of pizza names: 18
 - Step 0.3, status code of the request without a token: 401
 - Step 0.4, the name of your pizza: An Old Pugliese
-- Step 0.12, results of the three runs without a session (optional):
+- Step 0.12, results of the three runs without a session (optional): รอบที่ 1 = failed (401), รอบที่ 2 = failed (401), รอบที่ 3 = failed (401) ทุกรอบสร้าง user ได้ 201 แต่ล็อกอินได้ 401 (`assert 401 == 200`)
 - Step 0.16, blocks of "how many of the three tools are excluded":
+  - ไม่ exclude เครื่องมือเลย (0 ชิ้น)
+  - exclude 1 ชิ้น (test เดิมครอบคลุมอยู่ เช่น ["Knife"])
+  - exclude 2 ชิ้น (เช่น ["Knife", "Scissors"])
+  - exclude ครบ 3 ชิ้น (ไม่เหลือเครื่องมือให้ตัดพิซซ่า)
 
 ## Defect report
-- Title:
-- Request:
-- Expected result:
-- Actual result:
-- Severity:
+- Title: Defect 1: การ exclude เครื่องมือครบทั้ง 3 ชิ้น ทำให้ POST /api/pizza ตอบ 500 พร้อม body ว่าง
+- Request: POST https://quickpizza.grafana.com/api/pizza พร้อม header `Authorization: token <token>` และ body `{"excludedTools": ["Knife", "Pizza cutter", "Scissors"]}` (TODO: ยืนยันด้วย ex3.json ว่า input นี้ทำให้ได้ 500)
+- Expected result: status 400 และข้อความ error ในรูป JSON ที่บอกว่าไม่สามารถทำพิซซ่าได้ เพราะไม่เหลือเครื่องมือ
+- Actual result: status 500 และ body ว่าง (TODO: ยืนยันด้วย `curl -i`)
+- Severity: ปานกลางถึงสูง เพราะ server พังกับ input ที่ลูกค้าส่งได้จริง และฝั่งที่เรียก API ไม่ได้รับข้อความที่นำไปแสดงผล
 
 ## Part A
-- Step A4, status codes when the other user reads, changes and deletes: read ___, update ___, delete ___
+- Step A4, status codes when the other user reads, changes and deletes: read TODO, update 400 (body: {"error":"rating ID 4554 not found"}), delete 400 (body: {"error":"rating ID 4555 not found"})
 
 ## Part B
-1.
-2.
-3.
-4.
-5.
-6.
-7.
-8.
+1. ความล้มเหลว 2 แบบที่ API test เจอได้แต่ unit test ที่ใช้ stub เจอไม่ได้ คือ (ก) ปัญหาที่เกิดจากส่วนต่างๆ ทำงานร่วมกัน เช่น error 500 ใน Step 0.16 ที่โค้ดของ server กับข้อมูลจริงเข้ากันไม่ได้ และ (ข) ปัญหาของสภาพแวดล้อมจริง เช่น load balancer ส่งคำขอไปยัง server ที่ไม่รู้จัก user ที่เพิ่งสร้าง (Step 0.12) หรือ header และ token ผิด เพราะ stub ไปแทนที่ส่วนเหล่านี้ จึงซ่อนปัญหาไว้ เหตุผลที่ยังควรเขียน unit test ที่ใช้ stub ด้วย คือรันเร็ว ไม่ต้องใช้ network ให้ผลเหมือนเดิมทุกครั้ง ชี้ได้ว่าฟังก์ชันไหนพัง และไม่สร้างภาระให้ server ที่ใช้ร่วมกัน
 
-# API lab
+2. public token ใช้ร่วมกันทุกคน ratings ที่สร้างด้วย token นี้จึงเป็นของทุกคน นักศึกษาคนอื่นอาจแก้หรือลบระหว่างที่ test ของเราทำงาน ผลจึงไม่แน่นอน และเรายังไปยุ่งกับข้อมูลที่ไม่ใช่ของเราด้วย การสร้าง user ใหม่ที่ชื่อไม่ซ้ำ (ใช้ uuid) ทำให้ทุก test เป็นอิสระต่อกัน รันเดี่ยวหรือรันตามลำดับใดก็ผ่าน และไม่รบกวนใคร ใน Project 2 จะใช้แนวคิดเดียวกันกับร้านค้าหรือโรงแรม คือให้แต่ละ test สร้างข้อมูลของตัวเอง (เช่น ตะกร้า ออเดอร์ หรือการจอง) ด้วยชื่อที่ไม่ซ้ำ ใช้เฉพาะข้อมูลนั้น และลบทิ้งหลังจบ test ด้วย fixture เพื่อไม่ให้กระทบกลุ่มอื่นที่ใช้ระบบเดียวกัน
 
-## How to install and run
+3. QuickPizza ทำงานบนหลาย server ที่อยู่หลัง load balancer และแต่ละ server เก็บ user ของตัวเอง คุกกี้ AWSALB บอก load balancer ว่าต้องส่งคำขอไปที่ server ไหน `requests.Session` เก็บคุกกี้นี้ไว้ ทุกคำขอในการรันจึงไปที่ server เดิม ซึ่งรู้จัก user ที่เพิ่งสร้าง ถ้าไม่ใช้ session การล็อกอินอาจไปที่ server อื่นแล้วล้มด้วย 401 ใน Step 0.12 ที่ไม่ใช้ session ผมรัน 3 ครั้ง และล้มทั้ง 3 ครั้ง การสร้าง user ได้ 201 ทุกครั้ง แต่การล็อกอินได้ 401 ทุกครั้ง เพราะไม่มีคุกกี้ AWSALB คำขอล็อกอินจึงไปถึง server ที่ไม่เคยเห็น user นั้น ผลนี้ใกล้เคียงกับที่เอกสารรายงานว่าล้ม 46 ครั้งจาก 49 ครั้ง (ที่เอกสารไม่ได้ล้มทุกครั้ง แปลว่าบางครั้งคำขอบังเอิญไปถึง server เดิม) test ที่บางรอบผ่านบางรอบล้มโดยไม่ได้แก้โค้ดเรียกว่า flaky และไม่ควรอยู่ใน test suite
 
-    python3 -m venv .venv
-    source .venv/bin/activate
-    pip install -r requirements.txt
-    pytest -v
+4. บล็อก "exclude ครบทั้ง 3 ชิ้น" (TODO: ยืนยันกับผล curl ของตัวเอง) เป็นบล็อกที่เผยบั๊ก 500 พร้อม body ว่างแย่กว่า 400 พร้อมข้อความ เพราะ 500 บอกว่า server เองพัง แอปที่เรียกจึงไม่รู้ว่าตัวเองส่ง input ผิดหรือ server มีปัญหา ส่วน body ว่างทำให้โค้ดที่เรียก `res.json()` พังตามไปด้วย และไม่มีข้อความให้แสดงแก่ผู้ใช้ ขณะที่ 400 พร้อมข้อความบอกชัดว่าต้องแก้อะไร test นี้ยังคงอยู่ในชุดเป็น xfail ไม่ถูกลบ เพราะเป็นการบันทึกว่าบั๊กยังไม่ถูกแก้ ในขณะที่ชุด test ที่เหลือยังเขียวอยู่ และเมื่อใช้ strict=True การรันจะล้มทันทีที่ QuickPizza แก้บั๊ก ซึ่งเป็นสัญญาณให้เอา mark ออก ถ้าลบ test ทิ้ง บั๊กจะถูกลืมและไม่มี regression test
 
-## Input domain model for POST /api/ratings
+5. characteristic ทั้ง 4 มีบล็อก 3, 4, 2 และ 3 ตามลำดับ base choice coverage ต้องใช้ 1 + (3 - 1) + (4 - 1) + (2 - 1) + (3 - 1) = 1 + 2 + 3 + 1 + 2 = 9 tests ส่วน all combinations coverage ต้องใช้ 3 x 4 x 2 x 3 = 72 tests
 
-| Characteristic | Block | Value in the test | Test |
-|---|---|---|---|
-| C1 Value of stars | below 1 | 0 | test_stars_out_of_range[0] |
-| C1 Value of stars | 1 to 5 (base) | 3 | test_base_choice_is_saved |
-| C1 Value of stars | above 5 | 6 | test_stars_out_of_range[6] |
-| C2 Type of stars | whole number (base) | 3 | test_base_choice_is_saved |
-| C2 Type of stars | decimal | 3.5 | |
-| C2 Type of stars | text | "3" | |
-| C2 Type of stars | missing | no field | |
-| C3 Pizza | exists (base) | a new pizza | test_base_choice_is_saved |
-| C3 Pizza | does not exist | 999999999 | |
-| C4 Token | the user's own (base) | from auth | test_base_choice_is_saved |
-| C4 Token | none | no header | |
-| C4 Token | wrong length | token short | |
+6. status code ที่ได้เมื่อ user อื่นพยายามอ่าน แก้ และลบ rating ของเจ้าของ: read TODO, update 400 (`rating ID 4554 not found`), delete 400 (`rating ID 4555 not found`) ที่คาดหวังคือ 403 (รู้ว่าเป็นใครแต่ไม่มีสิทธิ์) หรือ 404 (API ซ่อนว่ามี rating นี้อยู่) ผลที่ได้ต่างไปเพราะ API ตอบ 400 พร้อมข้อความว่า "not found" ซึ่งแปลว่า rating ถูกซ่อนจาก user อื่น และ test ก็ตรวจแล้วว่า rating ของเจ้าของไม่เปลี่ยน จึงไม่ใช่ช่องโหว่ด้านความปลอดภัย แต่เป็นความไม่สอดคล้องของรหัสสถานะ เพราะ 400 หมายถึงคำขอผิดรูปแบบ ส่วนกรณีไม่พบข้อมูลควรเป็น 404 (เจ้าของที่เรียก rating ที่ถูกลบแล้วก็ได้ 404 ใน Step 0.14) จึงรายงานเป็น defect ระดับต่ำ ถ้า user อื่นได้ 200 หรือ 204 หรือข้อมูลเปลี่ยนจริง จึงจะเป็นช่องโหว่ร้ายแรง
+
+7. คำสั่ง: `curl -i -H "@madeup.txt" https://quickpizza.grafana.com/api/ratings` ผลที่ได้คือ `HTTP/2 200` และ body เป็น `{"ratings":[{"id":1,"stars":5,"pizza_id":1}, ...]}` เป็นรายการ ratings จำนวนมาก (content-length 1753) นี่คือบั๊ก เพราะ token `0000000000000000` เป็น token ที่แต่งขึ้น ไม่เคยได้จากการล็อกอิน แต่ API ยอมรับและส่งข้อมูลกลับมา ขณะที่คำขอที่ไม่มี token เลยได้ 401 (Step 0.3) แปลว่า API น่าจะตรวจแค่ว่ามี header หรือรูปแบบของ token เท่านั้น ไม่ได้ตรวจว่า token ออกให้ user จริงหรือไม่ (สาเหตุจริงผมไม่ทราบ เพราะเห็นแค่พฤติกรรมภายนอก) บนระบบจริง คนแปลกหน้าที่ไม่มีบัญชีก็อ่านข้อมูลที่ไม่ใช่ของตัวเองได้ และถ้า API ยอมรับ token ปลอมกับคำขอที่เขียนข้อมูลด้วย (ผมไม่ได้ทดสอบ เพราะกติกาของ lab ห้าม) ก็อาจสร้าง แก้ หรือลบข้อมูลของผู้อื่นได้ จึงมีความรุนแรงสูง
+
+8. สิ่งที่ API test ตรวจได้ดีกว่า คือ status code, header และ field ในคำตอบอย่างแม่นยำ รวมถึง input ที่หน้าเว็บไม่ให้ผู้ใช้กรอก เช่น 6 stars หรือไม่มี field และยังรันเร็วกว่าและเสถียรกว่า test ผ่าน browser ส่วนสิ่งที่ test ผ่านหน้าเว็บเท่านั้นที่ตรวจได้ คือสิ่งที่ผู้ใช้เห็นและทำจริง เช่น เลย์เอาต์ ปุ่มกดได้หรือไม่ ข้อความบนหน้าจอ และลำดับการใช้งานทั้งหมดใน browser
