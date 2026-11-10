@@ -15,7 +15,7 @@
 - Severity:
 
 ## Part A
-- Step A4, status codes when the other user reads, changes and deletes:
+- Step A4, status codes when the other user reads, changes and deletes: read ___, update ___, delete ___
 
 ## Part B
 1.
